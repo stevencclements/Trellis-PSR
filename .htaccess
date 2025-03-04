@@ -1,0 +1,13 @@
+RewriteEngine On
+
+RewriteBase /trellis-psr/
+
+# Redirect all requests to the index.php file in the public directory
+RewriteCond %{REQUEST_URI} !^/trellis-psr/public/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ public/index.php [L,QSA]
+
+# Redirect root requests to the index.php file in the public directory
+RewriteCond %{REQUEST_URI} ^/trellis-psr/?$
+RewriteRule ^$ public/index.php [L]

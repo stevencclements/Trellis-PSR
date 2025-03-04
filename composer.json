@@ -1,0 +1,14 @@
+{
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Cts\\Trellis\\": "trellis/"
+        }
+    },
+    "require": {
+        "psr/http-message": "^2.0"
+    },
+    "require-dev": {
+        "symfony/var-dumper": "^7.2"
+    }
+}
