@@ -62,7 +62,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      * Represents server values retrieved from the `$_SERVER` PHP
      * super global.
      */
-    protected array $serverParameters;
+    protected readonly array $serverParameters;
 
     /**
      * @param       array               $queryParameters
@@ -70,7 +70,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      * Represents the query parameters retrieved from the `$_GET` PHP
      * super global.
      */
-    protected array $queryParameters;
+    protected readonly array $queryParameters;
 
     /**
      * @param       mixed               $postParameters
@@ -78,7 +78,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      * Represents the post parameters retrieved from the `$_POST` PHP
      * super global.
      */
-    protected mixed $postParameters;
+    protected readonly mixed $postParameters;
 
     /**
      * @param       array               $cookies
@@ -86,7 +86,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      * Represents the cookies retrieved from the `$_COOKIE` PHP super
      * global.
      */
-    protected array $cookies;
+    protected readonly array $cookies;
 
     /**
      * @param       array               $uploadedFiles
@@ -94,7 +94,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      * Represents the metadata for uploaded files retrieved from the
      * `$_FILES` super global.
      */
-    protected array $uploadedFiles;
+    protected readonly array $uploadedFiles;
 
     /**
      * @param       mixed               $attributes
@@ -111,14 +111,16 @@ class ServerRequest extends Request implements ServerRequestInterface
      * class properties.
      */
     public function __construct(
-        array $serverParameters,
-        array $queryParameters,
-        array $postParameters,
-        array $cookies,
-        array $uploadedFiles,
-        array $attributes
+        array $attributes = []
     ) {
+        parent::__construct();
 
+        $this->serverParameters = $_SERVER;
+        $this->queryParameters = $_GET;
+        $this->postParameters = $_POST;
+        $this->cookies = $_COOKIE;
+        $this->uploadedFiles = $_FILES;
+        $this->attributes = $attributes;
     }
 
 
@@ -135,7 +137,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function getServerParams(): array
     {
-        return [];
+        return $this->serverParameters;
     }
 
 
@@ -156,7 +158,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function getQueryParams(): array
     {
-        return [];
+        return $this->queryParameters;
     }
 
 
@@ -178,7 +180,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function getParsedBody(): mixed
     {
-        return null;
+        return $this->postParameters;
     }
 
 
@@ -194,7 +196,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function getCookieParams(): array
     {
-        return [];
+        return $this->cookies;
     }
 
 
@@ -213,7 +215,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function getUploadedFiles(): array
     {
-        return [];
+        return $this->uploadedFiles;
     }
 
 
@@ -232,7 +234,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function getAttributes(): array
     {
-        return [];   
+        return $this->attributes;
     }
 
 
@@ -261,7 +263,7 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function getAttribute(string $name, $default = null): mixed
     {
-        return [];
+        return $this->attributes[$name] ?? $default;
     }
 
 
@@ -291,9 +293,12 @@ class ServerRequest extends Request implements ServerRequestInterface
      * 
      * @return      static
      */
-    public function withQueryParams(array $query): static
+    public function withQueryParams(array $queryParameters): static
     {
-        return $this;
+        $clone = clone $this;
+        $clone->queryParameters = $queryParameters;
+
+        return $clone;   
     }
 
 
@@ -332,9 +337,12 @@ class ServerRequest extends Request implements ServerRequestInterface
      * 
      * If an unsupported argument type is provided.
      */
-    public function withParsedBody(mixed $data): static
+    public function withParsedBody(mixed $postParameters): static
     {
-        return $this;
+        $clone = clone $this;
+        $clone->postParameters = $postParameters;
+
+        return $clone;   
     }
 
 
@@ -362,7 +370,10 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function withCookieParams(array $cookies): static
     {
-        return $this;    
+        $clone = clone $this;
+        $clone->cookies = $cookies;
+
+        return $clone;   
     }
 
 
@@ -387,7 +398,10 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function withUploadedFiles(array $uploadedFiles): static
     {
-        return $this;
+        $clone = clone $this;
+        $clone->uploadedFiles = $uploadedFiles;
+
+        return $clone;
     }
 
 
@@ -417,7 +431,10 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function withAttribute(string $name, mixed $value): static
     {
-        return $this;
+        $clone = clone $this;
+        $clone->attributes[$name] = $value;
+
+        return $clone;
     }
 
 
@@ -443,6 +460,9 @@ class ServerRequest extends Request implements ServerRequestInterface
      */
     public function withoutAttribute(string $name): static
     {
-        return $this;
+        $clone = clone $this;
+        unset($clone->attributes[$name]);
+
+        return $clone;
     }
 }

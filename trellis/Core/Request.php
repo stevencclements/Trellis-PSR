@@ -69,14 +69,15 @@ class Request extends Message implements RequestInterface
      * Constructor
      * 
      * Create a new `Request` instance with the specified (or default) class
-     * properties.
+     * properties.Please 
      */
-    public function __construct(
-        string $requestTarget,
-        string $method,
-        Uri $uri
-    ) {
+    public function __construct()
+    {
+        $this->requestTarget = 'origin-form';
+        $this->method = $_SERVER['REQUEST_METHOD'];
+        $this->uri = new Uri();
 
+        parent::__construct('r+');
     }
 
 
@@ -100,7 +101,18 @@ class Request extends Message implements RequestInterface
      */
     public function getRequestTarget(): string
     {
-        return '';
+        if ($this->requestTarget !== '') {
+            return $this->requestTarget;
+        }
+
+        $target = $this->uri->getPath();
+        $query = $this->uri->getQuery();
+
+        if ($query !== '') {
+            $target .= '?' . $query;
+        }
+
+        return $target !== '' ? $target : '/';
     }
 
 
@@ -113,7 +125,7 @@ class Request extends Message implements RequestInterface
      */
     public function getMethod(): string
     {
-        return '';
+        return $this->method;
     }
 
 
@@ -158,7 +170,14 @@ class Request extends Message implements RequestInterface
      */
     public function withRequestTarget(string $requestTarget): static
     {
-        return $this;
+        if (preg_match('/\s/', $requestTarget)) {
+            throw new \InvalidArgumentException('Request target cannot contain whitespace.');
+        }
+
+        $clone = clone $this;
+        $clone->requestTarget = $requestTarget;
+
+        return $clone;
     }
 
 
@@ -185,7 +204,14 @@ class Request extends Message implements RequestInterface
      */
     public function withMethod(string $method): static
     {
-        return $this;
+        if (!preg_match('/^[A-Za-z]+$/', $method)) {
+            throw new \InvalidArgumentException('Invalid HTTP method provided.');
+        }
+
+        $clone = clone $this;
+        $clone->method = $method;
+
+        return $clone;
     }
 
 
@@ -230,6 +256,14 @@ class Request extends Message implements RequestInterface
      */
     public function withUri(UriInterface $uri, bool $preserveHost = false): static
     {
-        return $this;
+        $clone = clone $this;
+        $clone->uri = $uri;
+
+        if (!$preserveHost && $uri->getHost() !== '') {
+            $host = $uri->getHost();
+            $clone->headers['host'] = [$host];
+        }
+
+        return $clone;
     }
 }

@@ -38,7 +38,7 @@ class Message implements MessageInterface {
      * The HTTP protocol version number as a string, for example `1.1`, `2.0`,
      * and so on.
      */
-    protected string $protocolVersion;
+    public string $protocolVersion;
 
     /** 
      * @param       array               $headers
@@ -46,7 +46,7 @@ class Message implements MessageInterface {
      * An associative array representing the headers received as part of the
      * HTTP request.
      */
-    protected array $headers;
+    public array $headers;
     
     /**
      * @param       Stream              $body
@@ -55,7 +55,7 @@ class Message implements MessageInterface {
      * instance of `Cts\Trellis\Core\Stream`. The `Stream` class initializes
      * an underlying resource, most commonly a file, to create a PHP stream.
      */
-    protected Stream $body;
+    public Stream $body;
 
 
     /**
@@ -65,11 +65,14 @@ class Message implements MessageInterface {
      * properties.
      */
     public function __construct(
-        Stream $body,
-        array $headers,
-        string $protocolVersion
-    ) {
+        string $mode
+    )
+    {
+        $versionNumber = explode('/', $_SERVER['SERVER_PROTOCOL']);
 
+        $this->body = new Stream($mode);
+        $this->headers = getallheaders();
+        $this->protocolVersion = $versionNumber[1];
     }
 
 
@@ -90,6 +93,14 @@ class Message implements MessageInterface {
      */
     public function hasHeader(string $headerName): bool
     {
+        $normalizedHeaderName = strtolower($headerName);
+
+        foreach ($this->headers as $name => $values) {
+            if (strtolower($name) === $normalizedHeaderName) {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -108,7 +119,7 @@ class Message implements MessageInterface {
      */
     public function getProtocolVersion(): string
     {
-        return '';
+        return $this->protocolVersion;
     }
 
 
@@ -144,7 +155,7 @@ class Message implements MessageInterface {
      */
     public function getHeaders(): array
     {
-        return [];
+        return $this->headers;
     }
 
 
@@ -171,6 +182,14 @@ class Message implements MessageInterface {
      */
     public function getHeader(string $headerName): array
     {
+        $normalizedHeaderName = strtolower($headerName);
+
+        foreach ($this->headers as $name => $values) {
+            if (strtolower($name) === $normalizedHeaderName) {
+                return $values;
+            }
+        }
+
         return [];
     }
 
@@ -204,7 +223,13 @@ class Message implements MessageInterface {
      */
     public function getHeaderLine(string $headerName): string
     {
-        return '';
+        $headerValues = $this->getHeader($headerName);
+
+        if (empty($headerValues)) {
+            return '';
+        }
+
+        return implode(', ', $headerValues);
     }
 
 
@@ -243,7 +268,10 @@ class Message implements MessageInterface {
      */
     public function withProtocolVersion(string $protocolVersion): static
     {
-        return $this;
+        $clone = clone $this;
+        $clone->protocolVersion = $protocolVersion;
+
+        return $clone;
     }
 
 
@@ -276,7 +304,14 @@ class Message implements MessageInterface {
      */
     public function withHeader(string $headerName, mixed $headerValues): static
     {
-        return $this;
+        $clone = clone $this;
+
+        $normalizedHeaderName = strtolower($headerName);
+        $headerValues = is_array($headerValues) ? $headerValues : [$headerValues];
+        
+        $clone->headers[$normalizedHeaderName] = $headerValues;
+
+        return $clone;
     }
 
 
@@ -310,7 +345,17 @@ class Message implements MessageInterface {
      */
     public function withAddedHeader(string $headerName, mixed $headerValues): static
     {
-        return $this;
+        $clone = clone $this;
+        $normalizedHeaderName = strtolower($headerName);
+        $headerValues = is_array($headerValues) ? $headerValues : [$headerValues];
+
+        if (isset($clone->headers[$normalizedHeaderName])) {
+            $clone->headers[$normalizedHeaderName] = array_merge($clone->headers[$normalizedHeaderName], $headerValues);
+        } else {
+            $clone->headers[$normalizedHeaderName] = $headerValues;
+        }
+
+        return $clone;
     }
 
 
@@ -337,7 +382,14 @@ class Message implements MessageInterface {
      */
     public function withBody(StreamInterface $body): static
     {
-        return $this;
+        $clone = clone $this;
+
+        if (!$body instanceof Stream) {
+            throw new \InvalidArgumentException('Body must be an instance of StreamInterface.');
+        }
+
+        $clone->body = $body;
+        return $clone;
     }
 
 
@@ -360,6 +412,13 @@ class Message implements MessageInterface {
      */
     public function withoutHeader(string $headerName): static
     {
-        return $this;
+        $clone = clone $this;
+        $normalizedHeaderName = strtolower($headerName);
+
+        if (isset($clone->headers[$normalizedHeaderName])) {
+            unset($clone->headers[$normalizedHeaderName]);
+        }
+
+        return $clone;
     }
 }

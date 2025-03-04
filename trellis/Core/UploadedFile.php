@@ -76,7 +76,9 @@ class UploadedFile implements UploadedFileInterface
         string $fileName,
         string $mediaType
     ) {
-
+        if ($error !== UPLOAD_ERR_OK && $error !== UPLOAD_ERR_NO_FILE) {
+            throw new \InvalidArgumentException("Invalid error code: {$error}");
+        }
     }
 
 
@@ -104,6 +106,10 @@ class UploadedFile implements UploadedFileInterface
      */
     public function getStream(): Stream
     {
+        if ($this->error !== UPLOAD_ERR_OK) {
+            throw new \RuntimeException("Cannot retrieve stream due to error: {$this->error}");
+        }
+
         return $this->fileStream;
     }
 
@@ -123,7 +129,7 @@ class UploadedFile implements UploadedFileInterface
      */
     public function getSize(): ?int
     {
-        return null;
+        return $this->size;
     }
 
 
@@ -148,7 +154,7 @@ class UploadedFile implements UploadedFileInterface
      */
     public function getError(): int
     {
-        return 0;
+        return $this->error;
     }
 
     
@@ -170,7 +176,7 @@ class UploadedFile implements UploadedFileInterface
      */
     public function getClientFilename(): ?string
     {
-        return null;
+        return $this->fileName;
     }
 
 
@@ -192,7 +198,7 @@ class UploadedFile implements UploadedFileInterface
      */
     public function getClientMediaType(): ?string
     {
-        return null;
+        return $this->mediaType;
     }
 
 
@@ -239,7 +245,29 @@ class UploadedFile implements UploadedFileInterface
      */
     public function moveTo(string $targetPath): void
     {
-        
+        if (empty($targetPath)) {
+            throw new \InvalidArgumentException("Target path must not be empty");
+        }
+
+        if (!is_writable(dirname($targetPath))) {
+            throw new \RuntimeException("The target directory is not writable: {$targetPath}");
+        }
+
+        $targetPath = realpath($targetPath) ?: $targetPath;
+
+        if (is_uploaded_file($this->fileStream->getMetadata('uri'))) {
+            if (!move_uploaded_file($this->fileStream->getMetadata('uri'), $targetPath)) {
+                throw new \RuntimeException("Failed to move uploaded file to target path: {$targetPath}");
+            }
+        } else {
+            $source = $this->fileStream;
+            $destination = fopen($targetPath, 'wb');
+            if ($destination === false) {
+                throw new \RuntimeException("Failed to open target file for writing: {$targetPath}");
+            }
+            stream_copy_to_stream($source, $destination);
+            fclose($destination);
+        }
     }
 /*—— ———— ———— ———— ———— ———— ———— ———— ———— ———— ———— ———— ———— ———— ———— ————|———— ———— ———— ———— ———— ———— ———— ————| */
 }

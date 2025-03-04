@@ -53,14 +53,14 @@ class Uri implements UriInterface
      * The authority component of the URI, for example
      * `[user-info@]host[:port]`.
      */
-    protected string $authority;
+    protected string $authority = '';
 
     /**
      * @param       string              $userInfo
      * 
      * The URI user information, for example `username[:password]`.
      */
-    protected string $userInfo;
+    protected string $userInfo = '';
 
     /**
      * @param       string              $host
@@ -105,16 +105,14 @@ class Uri implements UriInterface
      * properties.
      */
     public function __construct(
-        string $scheme,
-        string $authority,
-        string $userInfo,
-        string $host,
-        int $port,
-        string $path,
-        string $query,
-        string $fragment
+        string $fragment = ''
     ) {
-
+        $this->scheme = $_SERVER['REQUEST_SCHEME'];
+        $this->host = $_SERVER['HTTP_HOST'];
+        $this->port = intval($_SERVER['SERVER_PORT']);
+        $this->path = strtok($_SERVER['REQUEST_URI'], '?');
+        $this->query = $_SERVER['QUERY_STRING'];
+        $this->fragment = $fragment;
     }
 
 
@@ -172,7 +170,7 @@ class Uri implements UriInterface
      */
     public function getScheme(): string
     {
-        return '';
+        return strtolower($this->scheme);
     }
 
 
@@ -199,7 +197,17 @@ class Uri implements UriInterface
      */
     public function getAuthority(): string
     {
-        return '';
+        $authority = $this->host;
+
+        if (!empty($this->userInfo)) {
+            $authority = $this->userInfo . '@' . $authority;
+        }
+
+        if (!empty($this->port) && $this->port !== $this->getStandardPort($this->scheme)) {
+            $authority .= ':' . $this->port;
+        }
+
+        return $authority;
     }
 
 
@@ -224,7 +232,7 @@ class Uri implements UriInterface
      */
     public function getUserInfo(): string
     {
-        return '';
+        return $this->userInfo;
     }
 
 
@@ -246,7 +254,7 @@ class Uri implements UriInterface
      */
     public function getHost(): string
     {
-        return '';
+        return strtolower($this->host);
     }
 
 
@@ -268,7 +276,7 @@ class Uri implements UriInterface
      */
     public function getPort(): ?int
     {
-        return null;
+        return ($this->port !== $this->getStandardPort($this->scheme)) ? $this->port : null;
     }
 
 
@@ -304,7 +312,7 @@ class Uri implements UriInterface
      */
     public function getPath(): string
     {
-        return '';
+        return $this->path;
     }
 
 
@@ -336,7 +344,7 @@ class Uri implements UriInterface
      */
     public function getQuery(): string
     {
-        return '';
+        return $this->query;
     }
 
 
@@ -363,7 +371,7 @@ class Uri implements UriInterface
      */
     public function getFragment(): string
     {
-        return '';
+        return $this->fragment;
     }
 
 
@@ -392,7 +400,14 @@ class Uri implements UriInterface
      */
     public function withScheme(string $scheme): static
     {
-        return $this;
+        if (!preg_match('/^[a-z][a-z0-9+\-.]*$/i', $scheme)) {
+            throw new \InvalidArgumentException('Invalid scheme format');
+        }
+
+        $new = clone $this;
+        $new->scheme = strtolower($scheme);
+
+        return $new;
     }
 
 
@@ -420,7 +435,16 @@ class Uri implements UriInterface
      */
     public function withUserInfo(string $user, ?string $password = null): static
     {
-        return $this;
+        $userInfo = $user;
+
+        if ($password !== null) {
+            $userInfo .= ':' . $password;
+        }
+
+        $new = clone $this;
+        $new->userInfo = $userInfo;
+
+        return $new;
     }
 
 
@@ -446,7 +470,14 @@ class Uri implements UriInterface
      */
     public function withHost(string $host): static
     {
-        return $this;
+        if (empty($host)) {
+            throw new \InvalidArgumentException('Host cannot be empty');
+        }
+
+        $new = clone $this;
+        $new->host = strtolower($host);
+
+        return $new;
     }
 
 
@@ -477,7 +508,14 @@ class Uri implements UriInterface
      */
     public function withPort(?int $port): static
     {
-        return $this;
+        if ($port !== null && ($port < 1 || $port > 65535)) {
+            throw new \InvalidArgumentException('Invalid port range');
+        }
+
+        $new = clone $this;
+        $new->port = $port ?? $this->getStandardPort($this->scheme);
+
+        return $new;
     }
 
 
@@ -511,7 +549,14 @@ class Uri implements UriInterface
      */
     public function withPath(string $path): static
     {
-        return $this;
+        if (str_contains($path, '?') || str_contains($path, '#')) {
+            throw new \InvalidArgumentException('Path cannot contain query or fragment delimiters');
+        }
+
+        $new = clone $this;
+        $new->path = $path;
+
+        return $new;
     }
 
 
@@ -540,7 +585,14 @@ class Uri implements UriInterface
      */
     public function withQuery(string $query): static
     {
-        return $this;
+        if (str_contains($query, '#')) {
+            throw new \InvalidArgumentException('Query string cannot contain a fragment delimiter');
+        }
+
+        $new = clone $this;
+        $new->query = $query;
+
+        return $new;
     }
 
 
@@ -567,6 +619,28 @@ class Uri implements UriInterface
      */
     public function withFragment(string $fragment): static
     {
-        return $this;
+        $new = clone $this;
+        $new->fragment = $fragment;
+
+        return $new;
+    }
+
+
+    /**
+     * getStandardPort [PRIVATE]
+     * 
+     * Get the standard port for the current scheme.
+     * 
+     * @param       int             $scheme
+     * 
+     * @return      ?int            $port
+     */
+    private function getStandardPort(string $scheme): ?int
+    {
+        return match ($scheme) {
+            'http' => 80,
+            'https' => 443,
+            default => null,
+        };
     }
 }

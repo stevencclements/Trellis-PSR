@@ -37,6 +37,14 @@ use Psr\Http\Message\ResponseInterface;
 class Response extends Message implements ResponseInterface
 {
     /**
+     * @param       string              $content
+     * 
+     * The content returned by the server in response to an attempt to
+     * satisfy the request.
+     */
+    protected string $content;
+
+    /**
      * @param       int                 $statusCode
      * 
      * Represents the status code returned by the server in response to an
@@ -47,8 +55,8 @@ class Response extends Message implements ResponseInterface
     /**
      * @param       string              $reasonPhrase
      * 
-     * The content or error message returned by the server in response to an
-     * attempt to satisfy the request.
+     * The error message returned by the server in response to an attempt to
+     * satisfy the request.
      */
     protected string $reasonPhrase;
 
@@ -60,10 +68,32 @@ class Response extends Message implements ResponseInterface
      * properties.
      */
     public function __construct(
-        int $statusCode,
-        string $reasonPhrase
+        string $content,
+        int $statusCode = 200,
+        string $reasonPhrase = ''
     ) {
-        
+        parent::__construct('w+');
+
+        $this->statusCode = $statusCode;
+        $this->reasonPhrase = $reasonPhrase;
+
+        $this->body->write($content);
+        $this->body->rewind();
+    }
+
+
+    /**
+     * render
+     * 
+     * Render content from the stream body to the client.
+     * 
+     * @return      void
+     */
+    public function render()
+    {
+        http_response_code($this->statusCode);
+
+        echo $this->body->getContents();
     }
 
 
@@ -79,7 +109,7 @@ class Response extends Message implements ResponseInterface
      */
     public function getStatusCode(): int
     {
-        return 0;
+        return $this->statusCode;
     }
 
 
@@ -103,7 +133,24 @@ class Response extends Message implements ResponseInterface
      */
     public function getReasonPhrase(): string
     {
-        return '';
+        if ($this->reasonPhrase !== '') {
+            return $this->reasonPhrase;
+        }
+
+        // Default reason phrases based on RFC 7231/IANA
+        $defaultPhrases = [
+            200 => 'OK',
+            201 => 'Created',
+            204 => 'No Content',
+            400 => 'Bad Request',
+            401 => 'Unauthorized',
+            403 => 'Forbidden',
+            404 => 'Not Found',
+            500 => 'Internal Server Error',
+            502 => 'Bad Gateway',
+        ];
+
+        return $defaultPhrases[$this->statusCode] ?? '';
     }
 
 
@@ -140,8 +187,16 @@ class Response extends Message implements ResponseInterface
      * 
      * For invalid status code arguments.
      */
-    public function withStatus(int $code, string $reasonPhrase = ''): static
+    public function withStatus(int $statusCode, string $reasonPhrase = ''): static
     {
-        return $this;
+        if ($statusCode < 100 || $statusCode > 599) {
+            throw new \InvalidArgumentException('Invalid HTTP status code.');
+        }
+
+        $clone = clone $this;
+        $clone->statusCode = $statusCode;
+        $clone->reasonPhrase = $reasonPhrase;
+
+        return $clone;
     }
 }
